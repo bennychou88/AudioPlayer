@@ -12,7 +12,7 @@
 ### ADS-LD Output File: 'AudioPlayer.axf'
 ### ADS-LD Command File: 'AudioPlayer.lnp'
 ### Checking for dirty Components...
-### Creating CmdFile 'AudioPlayer.lnp', Handle=0x000004C0
+### Creating CmdFile 'AudioPlayer.lnp', Handle=0x000014EC
 ### Writing '.lnp' file
 ### ADS-LD Command file 'AudioPlayer.lnp' is ready.
 ### ADS-LD: About to start ADS-LD Thread.
