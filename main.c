@@ -20,30 +20,18 @@
  */
 
 #include "stm32f10x.h"
+#include "wm8731.h"
 
 #define LED_ON		(GPIOB->BSRR = GPIO_BSRR_BS1)
 #define LED_OFF	(GPIOB->BSRR = GPIO_BSRR_BR1)
 
-#define WM8731_I2C_ADDRESS						0x34
-#define WM8731_LEFT_LINE_IN                    ((uint16_t)0x00)<<9
-#define WM8731_RIGHT_LINE_IN                   ((uint16_t)0x01)<<9
-#define WM8731_LEFT_HEADPHONE_OUT              ((uint16_t)0x02)<<9
-#define WM8731_RIGHT_HEADPHONE_OUT             ((uint16_t)0x03)<<9
-#define WM8731_ANALOGUE_AUDIO_PATH_CONTROL     ((uint16_t)0x04)<<9
-#define WM8731_DIGITAL_AUDIO_PATH_CONTRL       ((uint16_t)0x05)<<9
-#define WM8731_POWER_DOWN_COTROL               ((uint16_t)0x06)<<9
-#define WM8731_DIGITAL_AUDIO_INTERFACE_FORMAT  ((uint16_t)0x07)<<9
-#define WM8731_SAMPLING_CONTROL                ((uint16_t)0x08)<<9
-#define WM8731_ACTIVE_CONTROL                  ((uint16_t)0x09)<<9
-#define WM8731_RESET_REGISTER                  ((uint16_t)0x0F)<<9
-
-volatile int i = 0;
+volatile int i = 0; //in use
 volatile int j = 0;
+volatile uint16_t k = 0;
 
 void SysTick_Handler(void){
-	
 	i++; //each ++ every 1ms
-		if(i == 500){ //after 500*1ms
+	if(i == 500){ //after 500*1ms
 		//LED_ON;
 	}
 	if(i == 1000){ //after 1000*1ms
@@ -52,7 +40,13 @@ void SysTick_Handler(void){
 	}
 }
 
-void init(void){
+void I2S_playTestSound(void){
+	while(!(SPI2->SR & SPI_SR_TXE));
+	if(SPI2->SR & SPI_SR_CHSIDE) SPI2->DR = 0xFFFF;
+	else	SPI2->DR = 0xFFFF;
+}
+
+void peripheralsInit(void){
 	/*
 	 *	Enabling clocks for peripherals
 	 * Port B:	LED
@@ -73,11 +67,11 @@ void init(void){
 	 *	Clock source_________AHB/8
 	 *	Exception request____Enabled
 	 */	
-	SysTick->LOAD = 8999; //8999 or 9000 ?????? check it
-	SysTick->VAL = 0;
-	SysTick->CTRL &= ~SysTick_CTRL_CLKSOURCE;
-	SysTick->CTRL |= SysTick_CTRL_ENABLE
-							|  SysTick_CTRL_TICKINT;
+	//SysTick->LOAD = 8999; //8999 or 9000 ?????? check it
+	//SysTick->VAL = 0;
+	//SysTick->CTRL &= ~SysTick_CTRL_CLKSOURCE;
+	//SysTick->CTRL |= SysTick_CTRL_ENABLE
+	//						|  SysTick_CTRL_TICKINT;
 	
 	/*
 	 *	SDIO init
@@ -97,28 +91,23 @@ void init(void){
 	 * need GPIO init_______Alternate function push-pull
 	 * PCLK2 and SDIO_CK clock frequencies must respect the following condition:
 		Freq(PCLK2) = 3/8 * Freq(SDIO_CK)
-	 */
-	 
-// 						GPIOC->CRH &= ~(GPIO_CRH_CNF8_0
-// 												|  GPIO_CRH_CNF9_0 
-// 												|  GPIO_CRH_CNF10_0 
-// 												|  GPIO_CRH_CNF11_0
-// 												|  GPIO_CRH_CNF12_0);
-// 						GPIOC->CRH |= GPIO_CRH_CNF8_1
-// 											|  GPIO_CRH_MODE8
-// 											|  GPIO_CRH_CNF9_1
-// 											|  GPIO_CRH_MODE9
-// 											|  GPIO_CRH_CNF10_1
-// 											|  GPIO_CRH_MODE10
-// 											|  GPIO_CRH_CNF11_1
-// 											|  GPIO_CRH_MODE11
-// 											|  GPIO_CRH_CNF12_1
-// 											|  GPIO_CRH_MODE12;	
-// 						
-// 						SDIO->POWER |= SDIO_POWER_PWRCTRL; //Power-on
-// 						SDIO->CLKCR |= SDIO_CLKCR_WIDBUS_0
-// 											|	SDIO_CLKCR_CLKEN
-// 											|	SDIO_CLKCR_CLKDIV; //finish this
+	 */	 
+	GPIOC->CRH &= ~(GPIO_CRH_CNF8_0
+					|  GPIO_CRH_CNF9_0 
+					|  GPIO_CRH_CNF10_0 
+					|  GPIO_CRH_CNF11_0
+					|  GPIO_CRH_CNF12_0);
+	GPIOC->CRH |= GPIO_CRH_CNF8_1
+					|  GPIO_CRH_MODE8
+					|  GPIO_CRH_CNF9_1
+					|  GPIO_CRH_MODE9
+					|  GPIO_CRH_CNF10_1
+					|  GPIO_CRH_MODE10
+					|  GPIO_CRH_CNF11_1
+					|  GPIO_CRH_MODE11
+					|  GPIO_CRH_CNF12_1
+					|  GPIO_CRH_MODE12;	
+	
 					  
 	
 	/*
@@ -144,42 +133,40 @@ void init(void){
 				  |  GPIO_CRH_MODE13
 				  |  GPIO_CRH_CNF15_1
 				  |  GPIO_CRH_MODE15;
-	SPI2->I2SPR |= 0x8C //I2SDIV = 140
-					|	SPI_I2SPR_ODD;
+	SPI2->I2SPR |= 0x000D;
+//					|	SPI_I2SPR_ODD;
 	SPI2->I2SCFGR |= SPI_I2SCFGR_I2SMOD
 					  |  SPI_I2SCFGR_I2SCFG_1;
+//					  |  SPI_I2SCFGR_DATLEN_0
+//					  |  SPI_I2SCFGR_CHLEN;
+	SPI2->CR2 |= SPI_CR2_TXEIE;
 	SPI2->I2SCFGR |= SPI_I2SCFGR_I2SE; //enable
 	
 	/*
 	 *	I2C init
 	 *
 	 *	Pinout
-	 *	SCL__________PB100
+	 *	SCL__________PB10
 	 * SDA__________PB11
 	 *	All pins as Alternate Function with open-drain and max speed 50MHz
 	 *
 	 * WM8731 I2C write address: 011010
-	 *	Peripheral clock frequency			2MHz
+	 *	Peripheral clock frequency			
 	 *	
 	 */
 	RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
-// 	NVIC_EnableIRQ(I2C2_EV_IRQn);
-// 	GPIOB->CRH |= GPIO_CRH_CNF10
-// 				  |  GPIO_CRH_MODE10
-// 				  |  GPIO_CRH_CNF11
-// 				  |  GPIO_CRH_MODE11;
-// 	I2C2->CR2 |= I2C_CR2_FREQ_1;
-// 	I2C2->CCR |= 0x0028; //add description for this crap line
-// 	I2C2->TRISE = 3;
-// 	//I2C2->CR2 |= I2C_CR2_ITEVTEN;
-// 	I2C2->OAR1 |= I2C_OAR1_ADD7;
-// 	I2C2->CR1 |= I2C_CR1_PE;
+ 	
+	GPIOB->CRH |= GPIO_CRH_CNF10
+				  |  GPIO_CRH_MODE10
+				  |  GPIO_CRH_CNF11
+				  |  GPIO_CRH_MODE11;
+	
 	I2C2->CR1 |= I2C_CR1_SWRST;
 	I2C2->CR1 &= ~I2C_CR1_SWRST;
-	I2C2->TRISE = 37;
-	I2C2->CCR = 178;
 	I2C2->CR2 |= I2C_CR2_FREQ_2
 				 |  I2C_CR2_FREQ_5;
+	I2C2->CCR |= 320;
+	I2C2->TRISE |= 10;
 	I2C2->CR1 |= I2C_CR1_PE;
 	
 	//LED init
@@ -195,100 +182,29 @@ void init(void){
 	
 	//Potentiometer init
 	
+	//Enable interrupts
+	NVIC_EnableIRQ(I2C2_EV_IRQn);
+	NVIC_EnableIRQ(SPI2_IRQn);
 }
+
 
 void I2C2_EV_IRQHandler(void){
-	if(I2C2->SR1 & I2C_SR1_AF){
-		I2C2->SR1 &= ~I2C_SR1_AF;
-		LED_ON;
-	}
 }
 
-void I2CSendData(uint8_t addr, uint8_t data){
-	LED_ON;
-	//I2C2->CR1 |= I2C_CR1_SWRST;
-	//I2C2->CR1 &= ~I2C_CR1_SWRST;
-	
-	//I2C2->CR2 |= I2C_CR2_FREQ_1;
-	//I2C2->CCR |= 0x0028; //add description for this crap line
-	//I2C2->OAR1 |= I2C_OAR1_ADD7;
-	
-	//I2C2->CR1 |= I2C_CR1_PE;
-	
-	//S
-	I2C2->CR1 |= I2C_CR1_START;	
-	
-	//EV5
-	//while(!(I2C2->SR1 & I2C_SR1_SB));
-	I2C2->SR1;
-	I2C2->DR = WM8731_I2C_ADDRESS;
-	//I2C2->CR2 |= I2C_CR2_ITEVTEN; 
-	
-	//EV6
-	//while(!(I2C2->SR1 & I2C_SR1_ADDR));
-	I2C2->SR1;
-	I2C2->SR2;
-	
-	//EV8_1	
-	I2C2->DR = addr;
-	//while(I2C2->SR2 & I2C_SR2_BUSY);
-	
-	//Data1 / EV8
-	I2C2->DR = data;
-	//while(I2C2->SR2 & I2C_SR2_BUSY);
-	
-	//P
-	
-	while(1){
-		if(I2C2->SR1 & (I2C_SR1_BTF | I2C_SR1_TXE)){
-			I2C2->CR1 |= I2C_CR1_STOP;
-			break;
-		}
-	}
-	
-	//while(I2C2->SR1 & I2C_SR1_AF);
-	LED_OFF;
+void SPI2_IRQHandler(void){
+	j++;
+	if(j==5000) LED_OFF;
+	else if(j==10000){LED_ON;j=0;}
+	if(SPI2->SR & SPI_SR_CHSIDE) SPI2->DR = 0xFFFF;
+	else	SPI2->DR = 0xFFFF;
 }
 
-void playTestSound(void){
-	while(!(SPI2->SR & SPI_SR_TXE));
-	SPI2->DR = 0xFF;
-	while(!(SPI2->SR & SPI_SR_TXE));
-	SPI2->DR = 0x99;
-}
-
-void WM8731_sendCommand(uint16_t registerAddress, uint16_t data){
-	uint32_t dummy;
-	data |= registerAddress;
-	I2C2->CR1 |= I2C_CR1_START;
-	while(!(I2C2->SR1 | I2C_SR1_SB));
-	dummy = I2C2->SR1;
-	I2C2->DR = WM8731_I2C_ADDRESS;
-	while(!(I2C2->SR1 | I2C_SR1_ADDR));
-	dummy = I2C2->SR1;
-	dummy = I2C2->SR2;
-	while(!(I2C2->SR1 | I2C_SR1_TXE));
-	I2C2->DR = (uint8_t)(data >> 8);
-	while(!(I2C2->SR1 | I2C_SR1_TXE));
-	I2C2->DR = (uint8_t)data;
-	//while((I2C2->SR1 & I2C_SR1_BTF) || (!(I2C2->SR1 & I2C_SR1_TXE)));
-	I2C2->CR1 |= I2C_CR1_STOP;
-}
 
 int main(void){
-	init();
-	
-	WM8731_sendCommand(WM8731_RESET_REGISTER, 0x00);
-	WM8731_sendCommand(WM8731_LEFT_HEADPHONE_OUT, 0x01C4);
-	WM8731_sendCommand(WM8731_RIGHT_HEADPHONE_OUT, 0x01C4);
-	WM8731_sendCommand(WM8731_ANALOGUE_AUDIO_PATH_CONTROL, 0x12);
-	WM8731_sendCommand(WM8731_DIGITAL_AUDIO_PATH_CONTRL, 0x04);
-	WM8731_sendCommand(WM8731_POWER_DOWN_COTROL, 0x07);
-	WM8731_sendCommand(WM8731_SAMPLING_CONTROL, 0x00);
-	WM8731_sendCommand(WM8731_ACTIVE_CONTROL, 0x01);
+	peripheralsInit();
+	WM8731_baseInit(WM8731_I2C_ADDRESS);
 
 	while(1){
-		LED_ON;	
-		playTestSound();
+		
 	}
 }

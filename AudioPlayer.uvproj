@@ -396,6 +396,11 @@
               <FileType>5</FileType>
               <FilePath>.\system_stm32f10x.h</FilePath>
             </File>
+            <File>
+              <FileName>wm8731.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\wm8731.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -415,6 +420,11 @@
               <FileName>system_stm32f10x.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\system_stm32f10x.c</FilePath>
+            </File>
+            <File>
+              <FileName>wm8731.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\wm8731.c</FilePath>
             </File>
           </Files>
         </Group>
